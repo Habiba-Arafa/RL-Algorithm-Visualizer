@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>RL Algorithms</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>From Theory to Practice: Watching Algorithms Learn</h1>
+    <div class="controls">
+      <label>Environment:
+        <select id="envSelect">
+          <option value="gridworld">GridWorld</option>
+          <option value="frozenlake">Frozen Lake</option>
+        </select>
+        <span class="hint">(Click here for info)</span>
+      </label>
+      
+      <label>Algorithm:
+        <select id="algorithmSelect">
+          <option value="value-iteration">Value Iteration</option>
+          <option value="policy-iteration">Policy Iteration</option>
+          <option value="sarsa">SARSA</option>
+          <option value="q-learning">Q-Learning</option>
+          <option value="monte-carlo-control-first-visit">Monte Carlo Control (First Visit)</option>
+          <option value="monte-carlo-control-every-visit">Monte Carlo Control (Every Visit)</option>
+        </select>
+      </label>
+      
+      <label>Mode:
+        <select id="modeSelect">
+          <option value="train">Training</option>
+          <option value="inference">Inference</option>
+        </select>
+      </label>
+      
+      <label title="Discount factor (0-1). Future reward importance.">Gamma (γ):
+        <input id="gammaInput" type="number" value="0.9" step="0.05" min="0" max="1">
+      </label>
+      
+      <label title="Convergence threshold. Smaller = more accurate.">Theta (θ):
+        <input id="thetaInput" type="number" value="0.01" step="0.001" min="0.0001">
+      </label>
+      
+      <!-- Model-free parameters -->
+      <div id="mcParams" style="display: none;">
+        <label title="Number of learning episodes (1000-10000 recommended).">Episodes:
+          <input id="episodesInput" type="number" value="10000" min="100" max="100000">
+        </label>
+        
+        <label title="Exploration rate (0-1). Higher = more exploration.">Epsilon (ε):
+          <input id="epsilonInput" type="number" value="0.1" step="0.05" min="0" max="1">
+        </label>
+        
+        <!-- alpha for TD methods -->
+        <label id="alphaLabel" title="Learning rate (0-1). Higher = faster learning." style="display: none;">Alpha (α):
+          <input id="alphaInput" type="number" value="0.1" step="0.05" min="0.01" max="1">
+        </label>
+      </div>
+      
+      <button id="loadBtn" title="Load environment">Load</button>
+      <button id="runBtn" title="Run algorithm">Run</button>
+      <button id="stepBtn" title="Step through">Step</button>
+      <button id="animateBtn" title="Animate process">Animate</button>
+      <button id="stopBtn" disabled title="Stop animation">Stop</button>
+      <button id="playBtn" style="display: none;" title="Play agent in environment">▶ Play</button>
+      <button id="resetBtn" title="Reset everything">Reset</button>
+    </div>
+    
+    <!-- algorithm info Panel -->
+    <div id="algoInfo" class="algo-info">
+      <div id="currentAlgoInfo">
+        <strong>Value Iteration:</strong> Iteratively updates state values until convergence.
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="progressSection" class="progress-section">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h2 style="margin: 0; font-size: 18px;">RL Algorithm Visualizer</h2>
+        <div id="stepDisplay" class="step-display">Step 0 / 0</div>
+      </div>
+      
+      <div id="progressBar" class="progress-bar">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="stat-box" title="Current iteration">
+          <div id="iterationDisplay" class="stat-value">0</div>
+          <div class="stat-label">Iteration</div>
+        </div>
+        
+        <div class="stat-box" title="Maximum change in values">
+          <div id="deltaDisplay" class="stat-value">0.0000</div>
+          <div class="stat-label">Delta (Δ)</div>
+        </div>
+        
+        <div class="stat-box" title="Total iterations">
+          <div id="totalIterationsDisplay" class="stat-value">0</div>
+          <div class="stat-label">Total</div>
+        </div>
+        
+        <div class="stat-box" title="Training status">
+          <div id="trainingStatus" class="stat-value">-</div>
+          <div class="stat-label">Status</div>
+        </div>
+      </div>
+      
+      <!-- inference Stats -->
+      <div id="inferenceStats" style="display: none; margin-top: 15px; padding: 10px; background: #f0fff4; border-radius: 6px; border: 1px solid #9ae6b4;">
+        <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #276749;">Agent Playing</h3>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; font-size: 13px;">
+          <div><strong>Step:</strong> <span id="agentStep">0</span></div>
+          <div><strong>State:</strong> <span id="currentState">-</span></div>
+          <div><strong>Action:</strong> <span id="currentAction">-</span></div>
+          <div><strong>Reward:</strong> <span id="currentReward">0</span></div>
+          <div><strong>Total:</strong> <span id="totalReward">0</span></div>
+          <div><strong>Status:</strong> <span id="agentStatus">Ready</span></div>
+        </div>
+      </div>
+    </div>
+
+    <section class="left">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <h3>Grid Visualization</h3>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-color start"></span> Start</div>
+          <div class="legend-item"><span class="legend-color goal"></span> Goal</div>
+          <div class="legend-item"><span class="legend-color hole"></span> Hole</div>
+          <div class="legend-item"><span class="legend-color agent"></span> Agent</div>
+        </div>
+      </div>
+      <div id="gridContainer"></div>
+      
+      <div id="graphContainer" class="graph-container">
+        <h3 style="margin-top: 0;">State Transition Graph</h3>
+      </div>
+    </section>
+
+    <section class="right">
+      <div class="info-panel">
+        <h3>Environment Info</h3>
+        <div id="envInfo">
+          <p><strong>Env:</strong> <span id="envName">-</span></p>
+          <p><strong>Algo:</strong> <span id="currentAlgorithm">-</span></p>
+          <p><strong>Mode:</strong> <span id="currentMode">-</span></p>
+          <p><strong>Gamma:</strong> <span id="currentGamma">-</span></p>
+        </div>
+      </div>
+      
+      <div class="explanation-panel">
+        <h3>Algorithm Explanation</h3>
+        <div id="algorithmExplanation">
+          <p id="algoDesc">Select an algorithm to see explanation.</p>
+          <div id="algoSteps"></div>
+        </div>
+      </div>
+      
+      <h3>State Values (V)</h3>
+      <pre id="valuesPre"></pre>
+
+      <h3>Policy (π)</h3>
+      <pre id="policyPre"></pre>
+
+      <h3>Execution Log</h3>
+      <div id="log"></div>
+    </section>
+  </main>
+
+  <!-- environment info Modal -->
+  <div id="envModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Environment Information</h2>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="gridworldInfo">
+          <h3>GridWorld 3x3</h3>
+          <p><strong>Description:</strong> Simple grid with deterministic transitions.</p>
+          <p><strong>Start:</strong> S1 (Top-left)</p>
+          <p><strong>Goal:</strong> S9 (Bottom-right) - Reward: +100</p>
+          <p><strong>Step penalty:</strong> -1 per move</p>
+          <p><strong>Transitions:</strong> 80% success, 20% stay in place</p>
+          <p><strong>Model-Free Tips:</strong></p>
+          <ul>
+            <li>SARSA/Q-learning: Use 1000-5000 episodes, alpha=0.1, epsilon=0.1</li>
+            <li>Monte Carlo: Use 10000+ episodes, epsilon=0.1</li>
+            <li>Gamma: 0.9-0.99 for most tasks</li>
+          </ul>
+        </div>
+        
+        <div id="frozenlakeInfo" style="display: none;">
+          <h3>Frozen Lake 4x4</h3>
+          <p><strong>Description:</strong> Navigate frozen lake without falling in holes.</p>
+          <p><strong>Start:</strong> S0 (Top-left)</p>
+          <p><strong>Goal:</strong> S15 (Bottom-right) - Reward: +1</p>
+          <p><strong>Holes:</strong> S5, S7, S11, S12 - Reward: -1</p>
+          <p><strong>Monte Carlo Control Algorithms:</strong></p>
+          <ul>
+            <li><strong>First Visit:</strong> Only first occurrence of state-action in episode counts. Less variance.</li>
+            <li><strong>Every Visit:</strong> All occurrences of state-action in episode count. More data per episode.</li>
+          </ul>
+          <p><strong>Recommended Parameters:</strong></p>
+          <ul>
+            <li>Episodes: 10000+ for Monte Carlo, 1000-5000 for TD</li>
+            <li>Gamma: 0.95-0.99</li>
+            <li>Epsilon: Start at 0.1-0.3, decays over time</li>
+            <li>Alpha: 0.1-0.3 for TD methods (SARSA, Q-learning)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="exampleMDPs.js"></script>
+  <script src="algorithms.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
