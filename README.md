@@ -6,6 +6,8 @@ An interactive, browser-based learning tool that implements six classic reinforc
 
 Built with vanilla JavaScript and D3.js. There is no backend and no build step.
 
+![Project Dashboard](rl3.png)
+
 ## Features
 
 - **Six algorithms, implemented from scratch** (no RL libraries)
