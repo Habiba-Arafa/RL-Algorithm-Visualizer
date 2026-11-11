@@ -80,7 +80,7 @@ Suggested starting values:
 │   ├── algorithms.js     # The six RL algorithms
 │   ├── exampleMDPs.js    # MDP definitions for GridWorld and Frozen Lake
 │   └── styles.css        # Styling
-└── RL_BOUNUS_REPORT.pdf  # Project report
+└── REPORT.pdf  # Project report
 ```
 
 ## Tech stack
